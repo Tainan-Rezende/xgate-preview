@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>XGate | Operações Pix</title>
+
+  <!-- Content Security Policy (CSP) Estrita para GitHub Pages -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    connect-src 'self' https://api.xgateglobal.com https://api64.ipify.org;
+    img-src 'self' data: https:;
+  ">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/dashboard.css" />
+
+</head>
+<body>
+
+  <!-- Barra de Navegação Superior Responsiva -->
+  <header class="navbar">
+    <div class="nav-container">
+      
+      <!-- Marca / Logo XGate -->
+      <div class="nav-left">
+        <a href="#" class="brand-logo" aria-label="XGate Home">
+          <img id="appLogo" src="img/xgate-white.png" alt="XGATE" class="brand-img" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='inline';" />
+          <span id="logoFallback" style="display: none;">XGATE</span>
+        </a>
+      </div>
+
+      <!-- Bloco de Ações e Saldo -->
+      <div class="nav-right">
+        
+        <!-- Widget de Saldo BRL -->
+        <div class="balance-card">
+          <span class="balance-label">Saldo BRL:</span>
+          <span class="balance-val" id="companyBalance">R$ ---</span>
+          <button type="button" class="btn-icon" id="btnRefreshBalance" title="Atualizar saldo">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6"></path>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Controles do Usuário (Tema, Temporizador, Email e Logout) -->
+        <div class="nav-user-actions">
+          
+          <!-- Temporizador Visual de Inatividade (15 min) -->
+          <span class="user-badge" id="sessionTimerBadge" title="Tempo restante antes do encerramento por inatividade" style="font-family: monospace; font-weight: 600;">⏳ 15:00</span>
+
+          <!-- Alternador de Tema Claro / Escuro -->
+          <button type="button" class="btn-icon theme-toggle-btn" id="btnThemeToggle" title="Alternar tema claro/escuro">
+            <svg class="theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <svg class="theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+
+          <!-- Identificação de E-mail (visível em desktop) -->
+          <span class="user-badge" id="userEmailBadge">Conectado</span>
+
+          <!-- Botão Sair -->
+          <button type="button" class="btn-logout" id="btnLogout" title="Encerrar sessão">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            <span>Sair</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- Banner Informativo de Permissões de IP -->
+    <div class="banner banner-warning">
+      <div style="font-size: 20px;">🛡️</div>
+      <div style="flex: 1 1 auto; min-width: 0;">
+        <strong>Atenção às Permissões de IP (Firewall XGate):</strong><br />
+        Seu IP público atual detectado é: 
+        <span class="ip-highlight">
+          <span id="clientPublicIp">Detectando...</span>
+          <button type="button" class="btn-icon" id="btnCopyIp" title="Copiar IP" style="color: var(--accent);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+        </span>
+        <br />
+        <small style="color: var(--text-secondary); display: block; margin-top: 4px;">
+          Lembre-se que este é o <strong>IP da sua máquina/conexão</strong> (dinâmico). No painel da XGate acesse <strong>Configurações</strong>:
+          o 1º campo (<em>"Permissões de IP"</em>) autoriza os <strong>Saques</strong>, e o 2º campo (<em>"IP Permitidos para consulta de saldo via API"</em>) autoriza a <strong>leitura do Saldo</strong>. O Depósito não exige IP.
+        </small>
+      </div>
+    </div>
+
+    <!-- Navegação de Abas -->
+    <div class="tabs-nav">
+      <button type="button" class="tab-btn active" data-tab="flow-deposit">📥 Gerar Depósito (Cash-in)</button>
+      <button type="button" class="tab-btn" data-tab="flow-withdraw">📤 Solicitar Saque (Cash-out)</button>
+    </div>
+
+    <!-- ==============================================================
+         FLUXO DE SAQUE (CASH-OUT)
+         ============================================================== -->
+    <section id="flow-withdraw" class="tab-pane active">
+      <div class="card">
+        
+        <!-- Indicador de Etapas -->
+        <div class="wizard-steps">
+          <div class="step-indicator active" id="w-step-ind-1">
+            <span class="step-number">1</span>
+            <span class="step-label">Cliente</span>
+          </div>
+          <div class="step-indicator" id="w-step-ind-2">
+            <span class="step-number">2</span>
+            <span class="step-label">Chave Pix</span>
+          </div>
+          <div class="step-indicator" id="w-step-ind-3">
+            <span class="step-number">3</span>
+            <span class="step-label">Valor</span>
+          </div>
+          <div class="step-indicator" id="w-step-ind-4">
+            <span class="step-number">4</span>
+            <span class="step-label">Revisão</span>
+          </div>
+        </div>
+
+        <!-- Passo 1: Cliente -->
+        <div class="wizard-step-content active" id="w-step-1">
+          <h3 style="margin-bottom: 12px; font-size: 15px;">Identificação do Cliente</h3>
+
+          <div class="choice-cards">
+            <div class="choice-card selected" id="w-opt-existing" onclick="WithdrawWizard.setClientMode('existing')">
+              <h4>Cliente Já Cadastrado</h4>
+              <p>Informe o ID único (_id) do cliente na XGate.</p>
+            </div>
+            <div class="choice-card" id="w-opt-new" onclick="WithdrawWizard.setClientMode('new')">
+              <h4>Cadastrar Novo Cliente</h4>
+              <p>Informe o nome e o documento (CPF/CNPJ).</p>
+            </div>
+          </div>
+
+          <div id="w-client-existing-box">
+            <div class="form-group">
+              <div class="label-row">
+                <label>ID do Cliente (_id)</label>
+                <span class="tooltip" data-tooltip="Identificador do cliente gerado na criação.">?</span>
+              </div>
+              <div class="search-id-group">
+                <input type="text" id="w-search-cust-id" placeholder="Ex: 6a1a379e1fe9bfd..." />
+                <button type="button" class="btn btn-secondary btn-nowrap" id="w-btn-verify-id">Verificar ID</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="w-client-new-box" style="display: none;">
+            <div class="form-group">
+              <div class="label-row">
+                <label>Nome do Cliente *</label>
+                <span class="tooltip" data-tooltip="Nome original digitado. Enviaremos internamente com sufixo aleatório para evitar conflitos na XGate.">?</span>
+              </div>
+              <input type="text" id="w-new-name" placeholder="Ex: João da Silva" />
+            </div>
+            <div class="form-group">
+              <div class="label-row">
+                <label>CPF ou CNPJ</label>
+                <span class="tooltip" data-tooltip="Pode conter pontuação. Será vinculado para conferência do Pix.">?</span>
+              </div>
+              <input type="text" id="w-new-doc" placeholder="123.456.789-00" />
+            </div>
+            <div class="form-group">
+              <div class="label-row">
+                <label>E-mail (Opcional)</label>
+              </div>
+              <input type="email" id="w-new-email" placeholder="cliente@email.com" />
+            </div>
+          </div>
+
+          <div id="w-cust-preview" style="display: none; background: var(--panel-bg); padding: 12px; border-radius: 8px; border: 1px solid var(--card-border); margin-top: 12px; font-size: 13px;">
+            <div><strong>Cliente:</strong> <span id="w-prev-name">---</span></div>
+            <div><strong>Documento:</strong> <span id="w-prev-doc">---</span></div>
+            <div><strong>ID:</strong> <code id="w-prev-id" style="color: var(--accent);">---</code></div>
+          </div>
+
+          <div id="w-step1-alert" class="alert"></div>
+
+          <div class="wizard-footer" style="justify-content: flex-end;">
+            <button type="button" class="btn btn-primary" id="w-btn-step1-next">Avançar para Chaves Pix →</button>
+          </div>
+        </div>
+
+        <!-- Passo 2: Chave Pix -->
+        <div class="wizard-step-content" id="w-step-2">
+          <h3 style="margin-bottom: 12px; font-size: 15px;">Chaves Pix do Cliente</h3>
+          
+          <div class="banner banner-info" style="margin-bottom: 14px;">
+            Selecione qual chave Pix receberá os fundos ou adicione uma nova chave para este cliente.
+          </div>
+
+          <div class="pix-keys-list" id="w-pix-keys-container">
+            <div style="font-size: 13px; color: var(--text-muted);">Consultando chaves cadastradas...</div>
+          </div>
+
+          <div style="background: var(--panel-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 14px; margin-top: 16px;">
+            <h4 style="font-size: 13px; margin-bottom: 10px; color: var(--text-secondary);">Cadastrar Nova Chave Pix</h4>
+            
+            <div class="new-pix-form">
+              <select id="w-new-pix-type" class="new-pix-select-type">
+                <option value="CPF">CPF</option>
+                <option value="CNPJ">CNPJ</option>
+                <option value="EMAIL">EMAIL</option>
+                <option value="PHONE">PHONE</option>
+                <option value="RANDOM">ALEATÓRIA</option>
+              </select>
+
+              <div id="w-phone-ddi-wrap" class="new-pix-ddi-wrap" style="display: none;">
+                <select id="w-phone-ddi">
+                  <option value="+55">+55 (BR)</option>
+                  <option value="+1">+1 (US)</option>
+                  <option value="+351">+351 (PT)</option>
+                  <option value="+54">+54 (AR)</option>
+                </select>
+              </div>
+
+              <input type="text" id="w-new-pix-val" placeholder="Valor da chave Pix" />
+              <button type="button" class="btn btn-secondary btn-nowrap" id="w-btn-add-pix">Cadastrar</button>
+            </div>
+          </div>
+
+          <div id="w-step2-alert" class="alert"></div>
+
+          <div class="wizard-footer">
+            <button type="button" class="btn btn-secondary" onclick="WithdrawWizard.goToStep(1)">← Voltar</button>
+            <button type="button" class="btn btn-primary" id="w-btn-step2-next">Avançar para Valores →</button>
+          </div>
+        </div>
+
+        <!-- Passo 3: Valores -->
+        <div class="wizard-step-content" id="w-step-3">
+          <h3 style="margin-bottom: 12px; font-size: 15px;">Valores do Saque</h3>
+
+          <div class="form-group">
+            <div class="label-row">
+              <label>Valor do Saque (R$)</label>
+              <span class="tooltip" data-tooltip="Importante: Se estiver sacando todo o saldo da empresa, subtraia as taxas para não ocorrer recusa por falta de saldo!">?</span>
+            </div>
+            <input type="number" step="0.01" id="w-amount" placeholder="Ex: 50.00" />
+          </div>
+
+          <div class="form-group">
+            <div class="label-row">
+              <label>Moeda</label>
+            </div>
+            <div style="background: var(--input-bg); border: 1px solid var(--card-border); padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--accent);">
+              BRL (Pix Nacional)
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="label-row">
+              <label>External ID (Opcional)</label>
+              <span class="tooltip" data-tooltip="Identificador de idempotência para o seu controle interno.">?</span>
+            </div>
+            <input type="text" id="w-external-id" placeholder="Ex: saque-0912" />
+          </div>
+
+          <div class="label-row" style="margin-top: 14px; margin-bottom: 0;">
+            <label class="checkbox-row" style="margin: 0;">
+              <input type="checkbox" id="w-identified-doc" checked />
+              <span>Validar titularidade do documento no Pix (identifiedDocumentPix)</span>
+            </label>
+            <span class="tooltip" data-tooltip="Esta opção só tem efeito se a sua empresa tiver em contrato a titularidade Pix desativada por padrão (permitindo ativá-la pontualmente nesta operação). Se sua empresa já possui validação de titularidade ativa por contrato, desmarcar esta caixa não desativará a validação do Banco Central/XGate.">?</span>
+          </div>
+
+          <div class="wizard-footer">
+            <button type="button" class="btn btn-secondary" onclick="WithdrawWizard.goToStep(2)">← Voltar</button>
+            <button type="button" class="btn btn-primary" id="w-btn-step3-next">Revisar Solicitação →</button>
+          </div>
+        </div>
+
+        <!-- Passo 4: Revisão -->
+        <div class="wizard-step-content" id="w-step-4">
+          <h3 style="margin-bottom: 14px; font-size: 15px;">Revisão da Solicitação de Saque</h3>
+
+          <div class="review-box">
+            <div class="review-item">
+              <span>Cliente:</span>
+              <span id="rev-w-cust-name">---</span>
+            </div>
+            <div class="review-item">
+              <span>Documento (CPF/CNPJ):</span>
+              <span id="rev-w-cust-doc">---</span>
+            </div>
+            <div class="review-item">
+              <span>Chave Pix Selecionada:</span>
+              <span id="rev-w-pix-key">---</span>
+            </div>
+            <div class="review-item">
+              <span>Tipo de Chave:</span>
+              <span id="rev-w-pix-type">---</span>
+            </div>
+            <div class="review-item">
+              <span>Valor a Enviar:</span>
+              <span id="rev-w-amount" style="color: var(--accent); font-size: 16px;">R$ 0,00</span>
+            </div>
+            <div class="review-item">
+              <span>Validação de Titularidade:</span>
+              <span id="rev-w-titularidade">Ativada (Sim)</span>
+            </div>
+          </div>
+
+          <div id="w-success-card" style="display: none; background: var(--accent-soft); border: 1px solid var(--accent); padding: 18px; border-radius: 10px; margin-bottom: 16px;">
+            <h4 style="color: var(--accent); margin-bottom: 8px;">✅ Saque Solicitado com Sucesso!</h4>
+            <p style="font-size: 13px; line-height: 1.5;">
+              ID da Transação: <code id="w-trans-id" style="color: var(--text-primary);">---</code><br />
+              Status retornado: <strong id="w-trans-status">PENDING</strong>
+            </p>
+            <div class="banner banner-warning" style="margin-top: 14px; margin-bottom: 0;">
+              <div>⚠️</div>
+              <div>
+                <strong>Atenção para Aprovação Manual:</strong><br />
+                Verifique na página de <strong>"Saques"</strong> da XGate. Se a sua empresa estiver configurada com <em>"Aprovação manual de saques em moedas fiduciárias"</em> em Configurações, o saque não cairá automaticamente: você deverá clicar no botão <strong>"Visualizar saques pendentes"</strong> no início da página de Saques da XGate para aprovar ou rejeitar.
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-secondary" onclick="WithdrawWizard.reset(false)">Manter Mesmo Cliente</button>
+              <button type="button" class="btn btn-primary" onclick="WithdrawWizard.reset(true)">Nova Operação (Zerar)</button>
+            </div>
+          </div>
+
+          <div id="w-step4-alert" class="alert"></div>
+
+          <div class="wizard-footer" id="w-review-actions">
+            <button type="button" class="btn btn-secondary" onclick="WithdrawWizard.goToStep(3)">← Voltar e Corrigir</button>
+            <button type="button" class="btn btn-primary" id="w-btn-execute">Confirmar e Autorizar Saque</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==============================================================
+         FLUXO DE DEPÓSITO (CASH-IN)
+         ============================================================== -->
+    <section id="flow-deposit" class="tab-pane">
+      <div class="card">
+        
+        <div class="wizard-steps">
+          <div class="step-indicator active" id="d-step-ind-1">
+            <span class="step-number">1</span>
+            <span class="step-label">Cliente</span>
+          </div>
+          <div class="step-indicator" id="d-step-ind-2">
+            <span class="step-number">2</span>
+            <span class="step-label">Valor</span>
+          </div>
+          <div class="step-indicator" id="d-step-ind-3">
+            <span class="step-number">3</span>
+            <span class="step-label">Revisão & QR Code</span>
+          </div>
+        </div>
+
+        <div class="wizard-step-content active" id="d-step-1">
+          <h3 style="margin-bottom: 12px; font-size: 15px;">Identificação do Cliente</h3>
+
+          <div class="choice-cards">
+            <div class="choice-card selected" id="d-opt-existing" onclick="DepositWizard.setClientMode('existing')">
+              <h4>Cliente Já Cadastrado</h4>
+              <p>Informe o ID único (_id) do cliente.</p>
+            </div>
+            <div class="choice-card" id="d-opt-new" onclick="DepositWizard.setClientMode('new')">
+              <h4>Novo Cliente</h4>
+              <p>Informe o nome e o documento (CPF/CNPJ).</p>
+            </div>
+          </div>
+
+          <div id="d-client-existing-box">
+            <div class="form-group">
+              <div class="label-row">
+                <label>ID do Cliente (_id)</label>
+              </div>
+              <div class="search-id-group">
+                <input type="text" id="d-search-cust-id" placeholder="Ex: 6a1a379e1fe9bfd..." />
+                <button type="button" class="btn btn-secondary btn-nowrap" id="d-btn-verify-id">Verificar ID</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="d-client-new-box" style="display: none;">
+            <div class="form-group">
+              <div class="label-row">
+                <label>Nome do Cliente *</label>
+              </div>
+              <input type="text" id="d-new-name" placeholder="Ex: Maria Pereira" />
+            </div>
+            <div class="form-group">
+              <div class="label-row">
+                <label>CPF ou CNPJ</label>
+              </div>
+              <input type="text" id="d-new-doc" placeholder="123.456.789-00" />
+            </div>
+            <div class="form-group">
+              <div class="label-row">
+                <label>E-mail (Opcional)</label>
+              </div>
+              <input type="email" id="d-new-email" placeholder="cliente@email.com" />
+            </div>
+          </div>
+
+          <div id="d-cust-preview" style="display: none; background: var(--panel-bg); padding: 12px; border-radius: 8px; border: 1px solid var(--card-border); margin-top: 12px; font-size: 13px;">
+            <div><strong>Cliente:</strong> <span id="d-prev-name">---</span></div>
+            <div><strong>Documento:</strong> <span id="d-prev-doc">---</span></div>
+            <div><strong>ID:</strong> <code id="d-prev-id" style="color: var(--accent);">---</code></div>
+          </div>
+
+          <div id="d-step1-alert" class="alert"></div>
+
+          <div class="wizard-footer" style="justify-content: flex-end;">
+            <button type="button" class="btn btn-primary" id="d-btn-step1-next">Avançar para Valores →</button>
+          </div>
+        </div>
+
+        <div class="wizard-step-content" id="d-step-2">
+          <h3 style="margin-bottom: 12px; font-size: 15px;">Dados do Depósito</h3>
+
+          <div class="form-group">
+            <div class="label-row">
+              <label>Valor da Cobrança (R$)</label>
+            </div>
+            <input type="number" step="0.01" id="d-amount" placeholder="Ex: 100.00" />
+          </div>
+
+          <div class="form-group">
+            <div class="label-row">
+              <label>Moeda</label>
+            </div>
+            <div style="background: var(--input-bg); border: 1px solid var(--card-border); padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--accent);">
+              BRL (Pix Nacional)
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="label-row">
+              <label>External ID (Opcional)</label>
+            </div>
+            <input type="text" id="d-external-id" placeholder="Ex: pedido-2831" />
+          </div>
+
+          <div class="label-row" style="margin-top: 14px; margin-bottom: 0;">
+            <label class="checkbox-row" style="margin: 0;">
+              <input type="checkbox" id="d-identified-doc" />
+              <span>Validar titularidade do documento no Pix (identifiedDocumentPix)</span>
+            </label>
+            <span class="tooltip" data-tooltip="Esta opção só tem efeito se a sua empresa tiver em contrato a titularidade Pix desativada por padrão (permitindo ativá-la pontualmente nesta operação). Se sua empresa já possui validação de titularidade ativa por contrato, desmarcar esta caixa não desativará a validação do Banco Central/XGate.">?</span>
+          </div>
+
+          <div class="wizard-footer">
+            <button type="button" class="btn btn-secondary" onclick="DepositWizard.goToStep(1)">← Voltar</button>
+            <button type="button" class="btn btn-primary" id="d-btn-step2-next">Revisar e Gerar Pix →</button>
+          </div>
+        </div>
+
+        <div class="wizard-step-content" id="d-step-3">
+          <h3 style="margin-bottom: 14px; font-size: 15px;">Revisão e Pagamento Pix</h3>
+
+          <div class="review-box" id="d-review-summary">
+            <div class="review-item">
+              <span>Cliente Pagador:</span>
+              <span id="rev-d-cust-name">---</span>
+            </div>
+            <div class="review-item">
+              <span>Documento:</span>
+              <span id="rev-d-cust-doc">---</span>
+            </div>
+            <div class="review-item">
+              <span>Valor:</span>
+              <span id="rev-d-amount" style="color: var(--accent); font-size: 16px;">R$ 0,00</span>
+            </div>
+          </div>
+
+          <!-- Área do QR Code Gerado Localmente -->
+          <div id="d-qr-area" style="display: none;">
+            <div class="qr-container">
+              <!-- Container onde o QRCode.js injeta o Canvas sem conexões externas -->
+              <div id="d-qr-canvas-box" style="background: #ffffff; padding: 12px; border-radius: 8px; margin-bottom: 14px; display: flex; align-items: center; justify-content: center;"></div>
+              
+              <div class="pix-copy-box">
+                <input type="text" id="d-pix-copy-input" readonly style="font-size: 12px;" />
+                <button type="button" class="btn btn-secondary" id="d-btn-copy-pix">Copiar</button>
+              </div>
+            </div>
+
+            <div class="banner banner-info" style="margin-top: 14px;">
+              <div>ℹ️</div>
+              <div>
+                A cobrança foi criada no gateway. Assim que o cliente pagar pelo app do banco, você pode consultar a confirmação e histórico diretamente na página de <strong>Depósitos</strong> no painel da XGate.
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-secondary" onclick="DepositWizard.reset(false)">Manter Mesmo Cliente</button>
+              <button type="button" class="btn btn-primary" onclick="DepositWizard.reset(true)">Novo Depósito</button>
+            </div>
+          </div>
+
+          <div id="d-step3-alert" class="alert"></div>
+
+          <div class="wizard-footer" id="d-review-actions">
+            <button type="button" class="btn btn-secondary" onclick="DepositWizard.goToStep(2)">← Voltar</button>
+            <button type="button" class="btn btn-primary" id="d-btn-execute">Gerar QR Code Pix</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <script src="js/qrcode.min.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

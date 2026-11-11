@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>XGate | Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/login.css" />
+
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src 'self' https://fonts.gstatic.com;
+  connect-src 'self' https://api.xgateglobal.com https://api64.ipify.org;
+  img-src 'self' data: https:;
+"
+    />
+  </head>
+  <body>
+    <div class="login-container">
+      <div class="brand-header">
+        <div class="brand-logo">
+          <img
+            id="loginLogo"
+            src="img/xgate-white.png"
+            alt="XGATE"
+            class="brand-img"
+            onerror="
+              this.style.display = 'none';
+              document.getElementById('loginFallback').style.display = 'inline';
+            "
+          />
+          <span id="loginFallback" style="display: none">XGATE</span>
+        </div>
+        <p class="brand-subtitle">Portal de Operações e Integração Pix</p>
+      </div>
+
+      <div class="card">
+        <form id="loginForm" autocomplete="off">
+          <div class="form-group">
+            <div class="label-row">
+              <label for="email">E-mail</label>
+              <span
+                class="tooltip"
+                data-tooltip="E-mail de acesso cadastrado na conta XGate."
+                >?</span
+              >
+            </div>
+            <div class="input-wrapper">
+              <input
+                type="email"
+                id="email"
+                placeholder="usuario@empresa.com"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="label-row">
+              <label for="password">Senha</label>
+              <span class="tooltip" data-tooltip="Sua senha de login.">?</span>
+            </div>
+            <div class="input-wrapper">
+              <input
+                type="password"
+                id="password"
+                placeholder="••••••••••••"
+                required
+              />
+              <button
+                type="button"
+                id="togglePassword"
+                class="password-toggle-btn"
+                title="Mostrar/Ocultar Senha"
+                tabindex="-1"
+              >
+                <svg
+                  id="eyeIcon"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" id="btnSubmit" class="btn">
+            <span class="spinner" id="spinner"></span>
+            <span id="btnText">Entrar</span>
+          </button>
+
+          <div id="alertBox" class="alert"></div>
+        </form>
+      </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script src="js/login.js"></script>
+  </body>
+</html>
