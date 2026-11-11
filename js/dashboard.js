@@ -3,7 +3,6 @@
 // ==========================================================================
 const Utils = {
   // Higieniza strings para prevenir ataques de Cross-Site Scripting (XSS)
-  // Uso de escape Unicode (\u0026 = '&') para garantir compatibilidade
   escapeHtml(str) {
     if (!str) return '';
     return String(str)
@@ -48,6 +47,96 @@ const Utils = {
 };
 
 // ==========================================================================
+// COMPONENTES DE FEEDBACK VISUAL: TOAST E MODAL
+// ==========================================================================
+const Toast = {
+  show(message, type = 'success', duration = 3500) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+
+    const icons = {
+      success: '✓',
+      warning: '⚠️',
+      error: '✕',
+      info: 'ℹ'
+    };
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+      <span class="toast-icon">${icons[type] || 'ℹ'}</span>
+      <span class="toast-msg">${Utils.escapeHtml(message)}</span>
+    `;
+
+    container.appendChild(toast);
+
+    // Animação de entrada
+    requestAnimationFrame(() => {
+      toast.classList.add('show');
+    });
+
+    // Auto-destruição após o tempo determinado
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+      }, 300);
+    }, duration);
+  }
+};
+
+const Modal = {
+  confirm(title, message, isDanger = false) {
+    return new Promise((resolve) => {
+      const overlay = document.getElementById('confirmModal');
+      const titleEl = document.getElementById('modalTitle');
+      const msgEl = document.getElementById('modalMessage');
+      const btnConfirm = document.getElementById('modalBtnConfirm');
+      const btnCancel = document.getElementById('modalBtnCancel');
+
+      if (!overlay || !btnConfirm || !btnCancel) {
+        resolve(false);
+        return;
+      }
+
+      titleEl.textContent = title;
+      msgEl.textContent = message;
+
+      if (isDanger) {
+        btnConfirm.className = 'btn btn-primary';
+        btnConfirm.style.backgroundColor = 'var(--danger)';
+        btnConfirm.style.color = '#ffffff';
+      } else {
+        btnConfirm.className = 'btn btn-primary';
+        btnConfirm.style.backgroundColor = '';
+        btnConfirm.style.color = '';
+      }
+
+      overlay.classList.add('active');
+
+      const cleanup = () => {
+        overlay.classList.remove('active');
+        btnConfirm.removeEventListener('click', onConfirm);
+        btnCancel.removeEventListener('click', onCancel);
+      };
+
+      const onConfirm = () => {
+        cleanup();
+        resolve(true);
+      };
+
+      const onCancel = () => {
+        cleanup();
+        resolve(false);
+      };
+
+      btnConfirm.addEventListener('click', onConfirm);
+      btnCancel.addEventListener('click', onCancel);
+    });
+  }
+};
+
+// ==========================================================================
 // TEMPORIZADOR DE SEGURANÇA POR INATIVIDADE (15 MINUTOS COM THROTTLE)
 // ==========================================================================
 const IdleSecurity = {
@@ -77,20 +166,20 @@ const IdleSecurity = {
     if (this.remainingSeconds <= 0) {
       clearInterval(this.intervalTimer);
       Auth.clearSession();
-      alert('Sua sessão foi encerrada por 15 minutos de inatividade por motivos de segurança.');
-      window.location.replace('index.html');
+      Toast.show('Sessão encerrada por inatividade. Redirecionando...', 'warning', 2500);
+      setTimeout(() => {
+        window.location.replace('index.html');
+      }, 1500);
     }
   },
 
   init() {
     this.reset();
 
-    // Ações de clique e teclado resetam imediatamente
     ['click', 'keydown', 'touchstart'].forEach(evt => {
       window.addEventListener(evt, () => this.reset(), { passive: true });
     });
 
-    // Movimento de mouse renova a cada 10 segundos de uso ativo (evita stutter no timer)
     window.addEventListener('mousemove', () => {
       if (Date.now() - this.lastResetTime > 10000) {
         this.reset();
@@ -155,12 +244,16 @@ const App = {
 
     const btnLogout = document.getElementById('btnLogout');
     if (btnLogout) {
-      btnLogout.addEventListener('click', () => {
-        Auth.clearSession();
-        window.location.replace('index.html');
+      btnLogout.addEventListener('click', async () => {
+        const confirmed = await Modal.confirm('Sair da Conta', 'Deseja realmente encerrar sua sessão atual?');
+        if (confirmed) {
+          Auth.clearSession();
+          window.location.replace('index.html');
+        }
       });
     }
 
+    this.setupCopyIpButton();
     this.detectPublicIp();
     await this.loadCurrencies();
     await this.fetchBalance();
@@ -176,6 +269,38 @@ const App = {
     DepositWizard.init();
   },
 
+  setupCopyIpButton() {
+    const btnCopy = document.getElementById('btnCopyIp');
+    if (!btnCopy) return;
+
+    btnCopy.addEventListener('click', async () => {
+      const ipText = this.detectedIp || document.getElementById('clientPublicIp')?.textContent?.trim();
+
+      if (!ipText || ipText === 'Detectando...' || ipText === 'Não detectado') {
+        Toast.show('Aguarde a detecção do IP antes de copiar.', 'warning');
+        return;
+      }
+
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(ipText);
+        } else {
+          const tempArea = document.createElement('textarea');
+          tempArea.value = ipText;
+          tempArea.style.position = 'fixed';
+          tempArea.style.opacity = '0';
+          document.body.appendChild(tempArea);
+          tempArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(tempArea);
+        }
+        Toast.show(`IP copiado: ${ipText}`, 'success');
+      } catch (err) {
+        prompt('Copie o seu IP manualmente:', ipText);
+      }
+    });
+  },
+
   async detectPublicIp() {
     const ipDisplay = document.getElementById('clientPublicIp');
     
@@ -188,7 +313,7 @@ const App = {
         return;
       }
     } catch (e) {
-      // Tenta fallback
+      // Falha tratada silenciosamente
     }
 
     try {
@@ -201,16 +326,6 @@ const App = {
       }
     } catch (e) {
       if (ipDisplay) ipDisplay.textContent = 'Não detectado';
-    }
-
-    const btnCopy = document.getElementById('btnCopyIp');
-    if (btnCopy) {
-      btnCopy.addEventListener('click', () => {
-        if (this.detectedIp) {
-          navigator.clipboard.writeText(this.detectedIp);
-          alert('IP copiado para a área de transferência: ' + this.detectedIp);
-        }
-      });
     }
   },
 
@@ -363,7 +478,7 @@ const WithdrawWizard = {
     Utils.clearAlert('w-step1-alert');
     const id = document.getElementById('w-search-cust-id').value.trim();
     if (!id) {
-      Utils.showAlert('w-step1-alert', 'Informe o ID do cliente.');
+      Toast.show('Informe o ID do cliente.', 'warning');
       return;
     }
 
@@ -377,7 +492,7 @@ const WithdrawWizard = {
 
       this.customer = res.data;
       this.renderCustomerPreview('w', this.customer);
-      Utils.showAlert('w-step1-alert', 'Cliente localizado com sucesso!', 'success');
+      Toast.show('Cliente localizado com sucesso!', 'success');
     } catch (e) {
       Utils.showAlert('w-step1-alert', e.message);
     } finally {
@@ -391,7 +506,7 @@ const WithdrawWizard = {
 
     if (this.clientMode === 'existing') {
       if (!this.customer || !this.customer._id) {
-        Utils.showAlert('w-step1-alert', 'Verifique o ID do cliente antes de avançar.');
+        Toast.show('Verifique o ID do cliente antes de avançar.', 'warning');
         return;
       }
       this.goToStep(2);
@@ -402,7 +517,7 @@ const WithdrawWizard = {
       const email = document.getElementById('w-new-email').value.trim();
 
       if (!originalName) {
-        Utils.showAlert('w-step1-alert', 'O nome do cliente é obrigatório.');
+        Toast.show('O nome do cliente é obrigatório.', 'warning');
         return;
       }
 
@@ -420,6 +535,7 @@ const WithdrawWizard = {
 
         this.customer = res.data.customer || res.data;
         this.renderCustomerPreview('w', this.customer, originalName);
+        Toast.show('Cliente cadastrado com sucesso!', 'success');
 
         this.goToStep(2);
         this.loadPixKeys();
@@ -496,7 +612,7 @@ const WithdrawWizard = {
     let keyVal = document.getElementById('w-new-pix-val').value.trim();
 
     if (!keyVal) {
-      Utils.showAlert('w-step2-alert', 'Informe o valor da chave Pix.');
+      Toast.show('Informe o valor da chave Pix.', 'warning');
       return;
     }
 
@@ -516,7 +632,7 @@ const WithdrawWizard = {
       if (!res.ok) throw new Error(res.data.message || 'Erro ao registrar chave Pix.');
 
       document.getElementById('w-new-pix-val').value = '';
-      Utils.showAlert('w-step2-alert', 'Chave cadastrada com sucesso!', 'success');
+      Toast.show('Chave cadastrada com sucesso!', 'success');
       this.selectedPixKey = res.data;
       await this.loadPixKeys();
     } catch (e) {
@@ -525,7 +641,8 @@ const WithdrawWizard = {
   },
 
   async deleteKey(keyId) {
-    if (!confirm('Deseja realmente remover esta chave Pix?')) return;
+    const confirmed = await Modal.confirm('Excluir Chave Pix', 'Deseja realmente remover esta chave Pix? Ela não poderá mais ser utilizada para saques.', true);
+    if (!confirmed) return;
 
     try {
       const res = await Auth.apiRequest(`/pix/customer/${encodeURIComponent(this.customer._id)}/key/remove/${encodeURIComponent(keyId)}`, {
@@ -533,6 +650,7 @@ const WithdrawWizard = {
       });
       if (!res.ok) throw new Error(res.data.message || 'Falha ao remover chave.');
 
+      Toast.show('Chave Pix removida com sucesso!', 'success');
       if (this.selectedPixKey && this.selectedPixKey._id === keyId) {
         this.selectedPixKey = null;
       }
@@ -545,7 +663,7 @@ const WithdrawWizard = {
   submitStep2() {
     Utils.clearAlert('w-step2-alert');
     if (!this.selectedPixKey) {
-      Utils.showAlert('w-step2-alert', 'Selecione uma chave Pix para continuar.');
+      Toast.show('Selecione uma chave Pix para continuar.', 'warning');
       return;
     }
     this.goToStep(3);
@@ -554,7 +672,7 @@ const WithdrawWizard = {
   submitStep3() {
     const amount = parseFloat(document.getElementById('w-amount').value);
     if (!amount || amount <= 0) {
-      alert('Informe um valor de saque válido.');
+      Toast.show('Informe um valor de saque válido.', 'warning');
       return;
     }
 
@@ -618,6 +736,7 @@ const WithdrawWizard = {
       document.getElementById('w-success-card').style.display = 'block';
       document.getElementById('w-review-actions').style.display = 'none';
 
+      Toast.show('Ordem de saque criada com sucesso!', 'success');
       setTimeout(() => App.fetchBalance(), 1000);
     } catch (e) {
       Utils.showAlert('w-step4-alert', e.message);
@@ -671,10 +790,26 @@ const DepositWizard = {
 
     const btnCopy = document.getElementById('d-btn-copy-pix');
     if (btnCopy) {
-      btnCopy.addEventListener('click', () => {
+      btnCopy.addEventListener('click', async () => {
         const code = document.getElementById('d-pix-copy-input').value;
-        navigator.clipboard.writeText(code);
-        alert('Código Pix Copia e Cola copiado com sucesso!');
+        if (!code) return;
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(code);
+          } else {
+            const tempArea = document.createElement('textarea');
+            tempArea.value = code;
+            tempArea.style.position = 'fixed';
+            tempArea.style.opacity = '0';
+            document.body.appendChild(tempArea);
+            tempArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempArea);
+          }
+          Toast.show('Código Pix Copia e Cola copiado!', 'success');
+        } catch (e) {
+          prompt('Copie o código Pix manualmente:', code);
+        }
       });
     }
   },
@@ -705,7 +840,7 @@ const DepositWizard = {
     Utils.clearAlert('d-step1-alert');
     const id = document.getElementById('d-search-cust-id').value.trim();
     if (!id) {
-      Utils.showAlert('d-step1-alert', 'Informe o ID do cliente.');
+      Toast.show('Informe o ID do cliente.', 'warning');
       return;
     }
 
@@ -719,7 +854,7 @@ const DepositWizard = {
 
       this.customer = res.data;
       WithdrawWizard.renderCustomerPreview('d', this.customer);
-      Utils.showAlert('d-step1-alert', 'Cliente localizado!', 'success');
+      Toast.show('Cliente localizado!', 'success');
     } catch (e) {
       Utils.showAlert('d-step1-alert', e.message);
     } finally {
@@ -733,7 +868,7 @@ const DepositWizard = {
 
     if (this.clientMode === 'existing') {
       if (!this.customer || !this.customer._id) {
-        Utils.showAlert('d-step1-alert', 'Verifique o ID do cliente antes de avançar.');
+        Toast.show('Verifique o ID do cliente antes de avançar.', 'warning');
         return;
       }
       this.goToStep(2);
@@ -743,7 +878,7 @@ const DepositWizard = {
       const email = document.getElementById('d-new-email').value.trim();
 
       if (!originalName) {
-        Utils.showAlert('d-step1-alert', 'O nome do cliente é obrigatório.');
+        Toast.show('O nome do cliente é obrigatório.', 'warning');
         return;
       }
 
@@ -761,6 +896,7 @@ const DepositWizard = {
 
         this.customer = res.data.customer || res.data;
         WithdrawWizard.renderCustomerPreview('d', this.customer, originalName);
+        Toast.show('Cliente cadastrado com sucesso!', 'success');
         this.goToStep(2);
       } catch (e) {
         Utils.showAlert('d-step1-alert', e.message);
@@ -771,7 +907,7 @@ const DepositWizard = {
   submitStep2() {
     const amount = parseFloat(document.getElementById('d-amount').value);
     if (!amount || amount <= 0) {
-      alert('Informe um valor de depósito válido.');
+      Toast.show('Informe um valor de depósito válido.', 'warning');
       return;
     }
 
@@ -782,7 +918,6 @@ const DepositWizard = {
     this.goToStep(3);
   },
 
-  // Cria a cobrança Pix na API e captura o payload dentro de data.data.code
   async executeDeposit() {
     Utils.clearAlert('d-step3-alert');
     const btn = document.getElementById('d-btn-execute');
@@ -815,7 +950,6 @@ const DepositWizard = {
 
       if (!res.ok) throw new Error(res.data.message || 'Falha ao gerar cobrança Pix.');
 
-      // Extrai o código da estrutura da XGate (data.data.code ou data.code)
       const responseData = res.data || {};
       const nestedData = responseData.data || {};
       const pixCode = nestedData.code || responseData.code || (nestedData.pix && nestedData.pix.code) || (responseData.pix && responseData.pix.code);
@@ -824,18 +958,15 @@ const DepositWizard = {
         throw new Error('A API não retornou o código Pix Copia e Cola.');
       }
 
-      // 1. Preenche o código e exibe a tela de resultado imediatamente
       document.getElementById('d-pix-copy-input').value = pixCode;
       document.getElementById('d-qr-area').style.display = 'block';
       document.getElementById('d-review-actions').style.display = 'none';
 
-      // 2. Renderização segura do QR Code local
       const qrBox = document.getElementById('d-qr-canvas-box');
       qrBox.innerHTML = '';
 
       try {
         if (typeof QRCode === 'function') {
-          // Opções com fallback seguro (sem quebrar caso CorrectLevel não exista)
           const qrOptions = {
             text: pixCode,
             width: 170,
@@ -850,16 +981,15 @@ const DepositWizard = {
 
           new QRCode(qrBox, qrOptions);
         } else if (typeof QRCode !== 'undefined' && typeof QRCode.toCanvas === 'function') {
-          // Suporte alternativo para builds baseadas no node-qrcode
           const canvas = document.createElement('canvas');
           qrBox.appendChild(canvas);
           QRCode.toCanvas(canvas, pixCode, { width: 170, margin: 1 });
         }
       } catch (renderErr) {
-        // Se a biblioteca visual falhar, o operador ainda tem o Pix Copia e Cola intacto
+        // Fallback visual
       }
 
-      Utils.showAlert('d-step3-alert', 'Cobrança Pix gerada com sucesso!', 'success');
+      Toast.show('QR Code Pix gerado com sucesso!', 'success');
     } catch (e) {
       Utils.showAlert('d-step3-alert', e.message);
     } finally {
@@ -889,9 +1019,9 @@ const DepositWizard = {
   }
 };
 
-// ==========================================================================
+// ==============================================================
 // INICIALIZAÇÃO SEGURA
-// ==========================================================================
+// ==============================================================
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => App.init());
 } else {
